@@ -1,0 +1,1 @@
+hola desde el archivo hello.txt, estoy en un directorio de prueba para que la mi IA de aliexpress no la lie y me estalle mi pc.. 

@@ -1,0 +1,1 @@
+hi im hi.txt from mcp-test-data folder por testing my own mcp server and avoid to destroy the proyect for the fault of my dumb llm.

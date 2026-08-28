@@ -1,0 +1,66 @@
+graph LR
+  subgraph User
+    U[Usuario Web]
+  end
+
+  subgraph NGINX["nginx (static + proxy)"]
+    NG[Nginx Proxy / UI]
+  end
+
+  subgraph AGENT["agent (API + runtime)"]
+    A_HTTP[HTTP API]
+    A_WS[WebSocket Session]
+    ChatSvc[ChatService]
+    BaseClient["BaseClient.post\n(common HTTP client)"]
+  end
+
+  subgraph LLM["llm (service)"]
+    L_API[POST /generate]
+    L_Service[LLMService]
+    OllamaProv[OllamaProvider]
+    OllamaHost["http://ollama:11434"]
+  end
+
+  subgraph MEMORY["memory (service)"]
+    M_API[Memory API]
+    M_Repo[Repositories]
+  end
+
+  subgraph TOOLS["tools-executor (service)"]
+    T_API[POST /execute]
+    ToolRegistry[ToolRegistry]
+    ToolsImpl["Calculator/Date/DirTree"]
+  end
+
+  subgraph SHARED["shared (library)"]
+    Shared["models/schemas/logging/utils"]
+  end
+
+  %% External flows
+  U -->|HTTP / Web UI| NG
+  NG -->|proxy HTTP| A_HTTP
+  NG -->|proxy WS| A_WS
+
+  %% Agent orchestration
+  A_HTTP --> ChatSvc
+  A_WS --> ChatSvc
+  ChatSvc -->|POST /get_or_create| BaseClient --> M_API
+  ChatSvc -->|POST /generate| BaseClient --> L_API
+  ChatSvc -->|POST /execute| BaseClient --> T_API
+
+  %% LLM internals
+  L_API --> L_Service
+  L_Service -->|provider call| OllamaProv --> OllamaHost
+  L_Service -->|uses| Shared
+  ToolRegistry -->|invokes| ToolsImpl
+  T_API --> ToolRegistry
+  M_API -->|uses| M_Repo
+
+  %% Shared usage
+  ChatSvc --> Shared
+  BaseClient --> Shared
+  A_WS --> Shared
+
+  %% Notes (ports)
+  classDef info fill:#f9f,stroke:#333,stroke-width:0.5;
+  OllamaHost:::info

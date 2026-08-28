@@ -1,0 +1,119 @@
+version: "3.9"
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/html/:/usr/share/nginx/html
+    depends_on:
+      - agent
+
+  agent:
+    build:
+      context: ./agent
+    expose:
+      - "8000"
+    volumes:
+      - ./agent:/app
+      - ./shared:/shared
+    environment:
+      PYTHONPATH: /shared
+      LLM_URL: http://llm:8000
+      TOOLS_URL: http://tools-executor:8000
+      MEMORY_URL: http://memory:8000
+      REQUEST_TIMEOUT: 300
+    depends_on:
+      - llm
+      - tools-executor
+      - memory
+      - ollama
+      - mcp-filesystem
+    
+  llm:
+    build:
+      context: ./llm
+    depends_on:
+      - ollama
+    expose:
+      - "8000"
+    volumes:
+      - ./llm:/app
+      - ./shared:/shared
+    environment:
+      PYTHONPATH: /shared
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:3b
+      TIMEOUT: 300
+      OLLAMA_ENDPOINT: /api/chat
+      
+
+  tools-executor:
+    build:
+      context: ./tools-executor
+    expose:
+      - "8000"
+    volumes:
+      - ./tools-executor:/app
+      - ./shared:/shared
+    depends_on:
+    - mcp-filesystem
+    environment:
+      PYTHONPATH: /shared
+      TOOL_TIMEOUT_SECONDS: 15.0
+      MCP_NAME_1: filesystem
+      MCP_URL_1: http://mcp-filesystem:8000/mcp
+
+  memory:
+    build:
+      context: ./memory
+    expose:
+      - "8000"
+    environment:
+      PYTHONPATH: /shared
+    volumes:
+      - ./memory:/app
+      - ./shared:/shared  
+
+  ollama:
+    build:
+      context: ./ollama
+    container_name: ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.5' # Ollama nunca usará más de 4 núcleos completos
+          memory: 4.5G  # Limitas la RAM máxima para no saturar el sistema
+    #ports:
+    #  - "11434:11434"
+    environment:
+      OLLAMA_MODEL: qwen2.5:3b
+      OLLAMA_NUM_PARALLEL: 1
+    volumes:
+      - ollama:/root/.ollama
+
+  mcp-filesystem:
+      build:
+        context: ./mcp-filesystem
+      expose:
+        - "8000"
+      volumes:
+        - ./mcp-test-data:/projects
+        - ./shared:/shared  
+      environment:
+        PYTHONPATH: /shared
+        MCP_HOST: 0.0.0.0
+        MCP_PORT: 8000
+        MCP_ALLOWED_DIRECTORY: /projects
+
+  mcp-client-test:
+    build:
+      context: ./mcp-client-test
+    depends_on:
+      - mcp-filesystem
+
+volumes:
+  ollama:
