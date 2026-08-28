@@ -89,7 +89,9 @@ Cliente / Web / Browser
     v   v   v
   llm memory tools-executor
     |      |        |
-    |      |        +----> herramientas registradas
+    |      |        +----> tools locales
+    |      |        |
+    |      |        +----> MCPManager ----> servidores MCP
     |      +--------------> historial de conversaciones
     +----------------------> modelo de IA / Ollama
 ```
@@ -149,17 +151,28 @@ La capa de memoria está diseñada para poder cambiar de almacenamiento sin afec
 
 ### 4. Tools Executor
 
-Es el servicio responsable de ejecutar herramientas.
+Es el servicio responsable de centralizar y ejecutar herramientas locales y
+tools descubiertas desde servidores MCP.
 
 Responsabilidades:
 
 - registrar herramientas disponibles,
+- conectarse a los servidores MCP configurados,
+- descubrir las tools publicadas por cada servidor MCP,
 - ejecutar una herramienta por nombre,
 - validar argumentos,
 - controlar timeouts,
 - devolver resultados normalizados.
 
-La arquitectura de herramientas se apoya en un registry para facilitar la extensión.
+Al iniciar, el servicio registra las tools locales en `ToolRegistry` y crea un
+`MCPManager` con la configuración de `mcp_servers`. El manager se conecta a los
+servidores MCP y obtiene sus definiciones de tools. `ToolManager` unifica las
+tools locales y remotas para que el agent las consuma mediante el mismo
+contrato.
+
+Los servidores MCP se ejecutan como servicios independientes, normalmente
+dentro de Docker Compose. Cada servidor se configura con un nombre y una URL,
+por ejemplo `http://mcp-filesystem:8000/mcp`.
 
 ### 5. Nginx
 
@@ -238,7 +251,16 @@ El agent recupera o crea la conversación y guarda el historial actualizado.
 
 ### Agent → Tools Executor
 
-Cuando el LLM decide invocar una herramienta, el agent la ejecuta a través del servicio de herramientas.
+Cuando el LLM decide invocar una herramienta, el agent la ejecuta a través del
+servicio de herramientas. `tools-executor` resuelve si la tool pertenece al
+registry local o a uno de los servidores MCP conectados.
+
+### Tools Executor → Servidores MCP
+
+Durante el arranque, `MCPManager` se conecta a cada servidor MCP configurado y
+descubre sus tools. Cuando se solicita una tool remota, `ToolManager` delega la
+ejecución al cliente MCP correspondiente y devuelve el resultado normalizado al
+agent.
 
 ### LLM → Ollama
 
@@ -270,7 +292,11 @@ agent
   |                      v
   |                tools-executor
   |                      |
-  |                      +--> ejecutar herramienta
+  |                      +--> ToolManager
+  |                             |
+  |                             +--> herramienta local
+  |                             |
+  |                             +--> MCPManager --> servidor MCP
   |                      +--> devolver resultado normalizado
   |
   +--> guardar conversación actualizada
@@ -284,7 +310,8 @@ Este flujo demuestra la separación clara entre:
 - coordinación,
 - inferencia,
 - persistencia,
-- ejecución de herramientas.
+- ejecución de herramientas locales,
+- consumo de herramientas remotas mediante MCP.
 
 ---
 
@@ -316,7 +343,12 @@ La capa `memory` puede cambiar de SQLite, PostgreSQL, Redis, MongoDB o una imple
 
 ### Añadir nuevas herramientas
 
-Se puede ampliar el registry del servicio `tools-executor` y añadir una nueva herramienta sin tocar la lógica central del agente. Siempre que la herramienta respete la interfaz del dominio.
+Las tools locales se añaden dentro de `tools-executor/app/tools/` y se
+registran en `tools-executor/app/main.py`. Para consumir tools remotas, se
+añade el servidor MCP a Docker Compose y se incorpora su configuración a la
+lista `mcp_servers` de `tools-executor/app/config.py`. En ambos casos, el
+agent recibe las definiciones a través de `tools-executor` sin cambiar su
+lógica central.
 
 ### Añadir nuevos microservicios
 

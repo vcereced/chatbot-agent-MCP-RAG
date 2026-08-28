@@ -1,4 +1,4 @@
-# Chatbot Agent + tools
+# Chatbot Agent + tools + MCP 
 
 Un agente conversacional que ejecuta tools distribuido por microservicios, diseñado para ser modular, reutilizable, escalable y fácil de adaptar a distintos proveedores de IA, persistencia o herramientas.
 
@@ -13,7 +13,7 @@ Este proyecto implementa un chatbot con una arquitectura orientada a microservic
 - Agent: coordina, gestiona el flujo informando por Websockets al front, invoca a otros servicios y orquesta la interacción con herramientas.
 - LLM: encapsula la integración con el modelo de lenguaje (en este caso, Ollama).
 - Memory: gestiona la persistencia del estado de la conversación y el historial.
-- Tools Executor: ejecuta herramientas externas o utilidades del sistema.
+- Tools Executor: ejecuta herramientas locales y tools descubiertas desde servidores MCP.
 - Nginx: sirve la capa de frontend y actúa como entrada HTTP para la aplicación.
 - Ollama: motor local de inferencia para el modelo de lenguaje.
 
@@ -96,8 +96,9 @@ authoring / browser / ui
 └─────┬───────┬───────┘
       │       │ HTTP
       │       ├───────────────► tools-executor
-      │                       │
-      │                       │ executes tools
+      │                       │    execute local tools and MCP tools
+      │                       └── MCPManager ─────► MCP servers
+      │                                           (streamable HTTP)
       │ HTTP
       ├───────────────► llm
       │                 │ generate responses
@@ -138,10 +139,14 @@ Responsable de:
 Responsable de:
 
 - registrar herramientas,
-- ejecutar lógica en funciones externas,
+- conectarse a servidores MCP y descubrir sus tools,
+- ejecutar herramientas locales o remotas,
 - manejar timeouts, errores y resultados estandarizados.
 
----
+### Servidores MCP
+
+El chatbot puede consumir tools publicadas por servidores MCP a través de
+`tools-executor`.
 
 #### Shared
 
@@ -201,8 +206,39 @@ nuevo_servicio/
 
 ### Añadir una nueva herramienta
 
-1. Crear la herramienta dentro de `tools-executor/app/tools/`.
-2. Registrarla en el `/app/registry/tool_registry.py` y registralos en la clase ToolRegistry.
+1. Crear un archivo dentro de `tools-executor/app/tools/` e implementar la
+      tool siguiendo el patrón de las herramientas existentes.
+2. Importar la tool y registrarla en
+      `tools-executor/app/main.py`, dentro del bloque de herramientas locales:
+
+      ```python
+      # Local tools
+      registry = ToolRegistry()
+      registry.register(CalculatorTool())
+      registry.register(DateTimeTool())
+      ```
+
+      Añade una llamada `registry.register(NuevaTool())` para cada nueva tool.
+
+### Añadir una nuevo servidor MCP
+1. Añade el servicio MCP a `docker-compose.yml` y asegúrate de que se levanta
+      dentro de la misma red de Docker Compose.
+2. Añade su configuración a la lista `mcp_servers` de
+      `tools-executor/app/config.py`:
+
+      ```python
+      # MCPConfig(
+      #     name="github",
+      #     url="http://mcp-github:8000/mcp",
+      # ),
+      ```
+
+      La URL debe usar el nombre del servicio definido en Docker Compose y el
+      endpoint MCP que exponga ese servidor.
+3. Levanta o reconstruye los servicios con `docker compose up --build`. Al
+      iniciar, `tools-executor` se conecta a los servidores configurados y
+      descubre automáticamente sus tools.
+
 
 ### Cambiar proveedor de IA
 

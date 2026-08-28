@@ -28,8 +28,17 @@ graph LR
 
   subgraph TOOLS["tools-executor (service)"]
     T_API[POST /execute]
+    T_TOOLS[GET /tools]
+    ToolManager[ToolManager]
     ToolRegistry[ToolRegistry]
-    ToolsImpl["Calculator/Date/DirTree"]
+    ToolsImpl["Calculator/DateTime"]
+    MCPManager[MCPManager]
+    MCPClient[MCPClient]
+  end
+
+  subgraph MCP_SERVERS["MCP servers (Docker Compose)"]
+    MCPFilesystem["mcp-filesystem\n/tools"]
+    MCPExternal["Other MCP servers\n(e.g. GitHub)"]
   end
 
   subgraph SHARED["shared (library)"]
@@ -52,8 +61,14 @@ graph LR
   L_API --> L_Service
   L_Service -->|provider call| OllamaProv --> OllamaHost
   L_Service -->|uses| Shared
-  ToolRegistry -->|invokes| ToolsImpl
-  T_API --> ToolRegistry
+
+  %% Tools executor internals
+  T_API --> ToolManager
+  T_TOOLS --> ToolManager
+  ToolManager -->|local tools| ToolRegistry --> ToolsImpl
+  ToolManager -->|remote tools| MCPManager --> MCPClient
+  MCPClient -->|Streamable HTTP| MCPFilesystem
+  MCPClient -->|Streamable HTTP| MCPExternal
   M_API -->|uses| M_Repo
 
   %% Shared usage
