@@ -17,7 +17,6 @@ service = ChatService()
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
 
-    print(">>> WEBSOCKET ENDPOINT REGISTRADO <<<")
     await websocket.accept()
 
     session = WebSocketSession(
@@ -26,8 +25,3 @@ async def websocket_endpoint(websocket: WebSocket):
     )
 
     await session.run()
-
-print(">>> chat.py importado <<<")
-logger.info("router registrado")
-logger.info(router.routes)
-print(router.routes)

@@ -18,10 +18,7 @@ async def execute(
 
     service = request.app.state.tool_service
 
-    logger.info(
-        "Executing tool request: %s",
-        body.tool_call.name,
-    )
+    logger.info("Executing tool request: %s", body.tool_call.name)
 
     tool_result = await service.execute(
         body.tool_call

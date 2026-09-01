@@ -80,7 +80,7 @@ services:
   ollama:
     build:
       context: ./ollama
-    container_name: ollama
+
     restart: unless-stopped
     deploy:
       resources:
@@ -109,11 +109,6 @@ services:
         MCP_PORT: 8000
         MCP_ALLOWED_DIRECTORY: /projects
 
-  mcp-client-test:
-    build:
-      context: ./mcp-client-test
-    depends_on:
-      - mcp-filesystem
 
 volumes:
   ollama:
