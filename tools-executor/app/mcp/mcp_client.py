@@ -131,3 +131,29 @@ class MCPClient:
                 success=False,
                 error=str(exc),
             )
+
+    async def close(self) -> None:
+        logger.info("Closing MCP '%s'", self.name)
+
+        if self._session_context is not None:
+            try:
+                await self._session_context.__aexit__(
+                    None,
+                    None,
+                    None,
+                )
+            finally:
+                self._session_context = None
+                self.session = None
+
+        if self._http_context is not None:
+            try:
+                await self._http_context.__aexit__(
+                    None,
+                    None,
+                    None,
+                )
+            finally:
+                self._http_context = None
+                self.read = None
+                self.write = None

@@ -27,7 +27,6 @@ class OllamaProvider:
         tools: list[ToolDefinition] | None,
     ) -> GenerateResult:
 
-        logger.info("before to message XXXXXXXXXXX")
         logger.info(messages)
 
     #    messages_for_llm = [
@@ -42,9 +41,7 @@ class OllamaProvider:
         }
         if tools:#si llegan tools se añaden al mensaje para el llm
             payload["tools"] = OllamaMapper.to_tools(tools)
-
-        logger.debug("OllamaProvider->OllamaMapper = ", payload)
-        logger.info("XXXXXXXXXXX")
+        logger.info("provider -> LLM")
         logger.info(payload)
 
         try:
@@ -71,6 +68,6 @@ class OllamaProvider:
                 status_code=e.response.status_code,
                 detail=e.response.text,
             )
-        logger.info("XXXXXXXXXXXXXXXXXX")
+        logger.info("LLM -> provider")
         logger.info(response.json())
         return OllamaMapper.to_generate_result(response.json())
