@@ -1,6 +1,6 @@
 COMPOSE=docker compose
 
-.PHONY: up down build restart logs ps clean shell
+.PHONY: up down build restart logs ps clean shell test test-verbose
 
 up:
 	docker compose up \

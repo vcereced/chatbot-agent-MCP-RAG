@@ -42,7 +42,7 @@ async def chat(payload: ChatRequest):
             "eval_duration": 8341436000
         }
     elif last_user_message.content == "test tool":
-        answer = {'model': 'qwen2.5:3b', 'created_at': '2026-09-03T18:01:52.276409928Z', 'message': {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'call_40lyef3s', 'function': {'index': 0, 'name': 'calculator', 'arguments': {2 + 2}}}]}, 'done': True, 'done_reason': 'stop', 'total_duration': 17953465405, 'load_duration': 1790606, 'prompt_eval_count': 230, 'prompt_eval_duration': 6555276000, 'eval_count': 15, 'eval_duration': 11374974000}
+        answer = {'model': 'qwen2.5:3b', 'created_at': '2026-09-03T18:01:52.276409928Z', 'message': {'role': 'assistant', 'content': '', 'tool_calls': [{'id': 'call_40lyef3s', 'function': {'index': 0, 'name': 'calculator', 'arguments': {'expression': '2 + 2'}}}]}, 'done': True, 'done_reason': 'stop', 'total_duration': 17953465405, 'load_duration': 1790606, 'prompt_eval_count': 230, 'prompt_eval_duration': 6555276000, 'eval_count': 15, 'eval_duration': 11374974000}
     else:
         answer = {'model': 'qwen2.5:3b', 'created_at': '2026-09-03T18:10:45.563194995Z', 'message': {'role': 'assistant', 'content': 'test tool ok'}, 'done': True, 'done_reason': 'stop', 'total_duration': 61870277754, 'load_duration': 4976463, 'prompt_eval_count': 67, 'prompt_eval_duration': 28250053000, 'eval_count': 43, 'eval_duration': 33600504999}
     return answer
