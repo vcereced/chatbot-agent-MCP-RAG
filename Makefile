@@ -10,7 +10,8 @@ up:
 		tools-executor \
 		memory \
 		ollama \
-		mcp-filesystem
+		mcp-filesystem \
+		rag
 
 build:
 	$(COMPOSE) up --build
@@ -37,7 +38,7 @@ clean:
 
 test:
 	@OLLAMA_BASE_URL=http://fake-llm:8000 docker compose up -d \
-		agent fake-llm tools-executor memory mcp-filesystem \
+		agent fake-llm tools-executor memory mcp-filesystem rag \
 		>/tmp/chatbot-compose.log 2>&1
 	@OLLAMA_BASE_URL=http://fake-llm:8000 docker compose run --rm test-runner \
 		pytest -q --tb=short \
@@ -57,7 +58,7 @@ test:
 
 test-verbose:
 	OLLAMA_BASE_URL=http://fake-llm:8000 docker compose up -d \
-		agent fake-llm tools-executor memory mcp-filesystem
+		agent fake-llm tools-executor memory mcp-filesystem rag
 
 	OLLAMA_BASE_URL=http://fake-llm:8000 docker compose run --rm test-runner \
 		pytest -vv --tb=long; \

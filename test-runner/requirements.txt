@@ -3,3 +3,4 @@ websockets
 pytest-asyncio
 httpx
 mcp
+requests

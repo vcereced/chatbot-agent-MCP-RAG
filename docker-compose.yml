@@ -90,6 +90,21 @@ services:
       - ./shared:/shared
     healthcheck: *healthcheck  
 
+  rag:
+    build:
+      context: ./rag
+    expose:
+      - "8000"
+    # ports:
+    #   - "8000:8000"
+    environment:
+      PYTHONPATH: /shared
+    volumes:
+      - ./rag:/app
+      - ./shared:/shared
+    healthcheck: *healthcheck
+
+
   ollama:
     build:
       context: ./ollama
@@ -150,6 +165,8 @@ services:
       memory:
         condition: service_healthy
       mcp-filesystem:
+        condition: service_healthy
+      rag:
         condition: service_healthy
 
 
