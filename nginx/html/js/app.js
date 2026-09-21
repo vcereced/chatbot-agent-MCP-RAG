@@ -1,6 +1,13 @@
 const chat = document.getElementById("chat");
 const input = document.getElementById("message-input");
 const sendButton = document.getElementById("send-btn");
+const imageButton = document.getElementById("image-btn");
+
+const pdfInput = document.createElement("input");
+pdfInput.type = "file";
+pdfInput.accept = ".pdf,application/pdf";
+pdfInput.style.display = "none";
+document.body.appendChild(pdfInput);
 
 let conversationId = null;
 let currentPlaceholder = null;
@@ -104,7 +111,49 @@ socket.onerror = (event) => {
 // ============================================================
 
 sendButton.addEventListener("click", sendMessage);
+imageButton.addEventListener("click", () => {
+    pdfInput.click();
+});
 
+pdfInput.addEventListener("change", async () => {
+    const file = pdfInput.files[0];
+
+    if (!file) {
+        return;
+    }
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+    if (!isPdf) {
+        alert("Solo puedes seleccionar archivos PDF.");
+        pdfInput.value = "";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    addUserMessage(`Subiendo PDF: ${file.name}`);
+
+    try {
+        const response = await fetch("/api/rag/ingest_documents", {
+            method: "POST",
+            body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "No se pudo enviar el PDF.");
+        }
+
+        addAgentMessage(`PDF recibido correctamente. Se procesaron ${data.chunks ?? 0} fragmentos.`);
+    } catch (error) {
+        addAgentMessage(`Error al enviar el PDF: ${error.message}`);
+    } finally {
+        pdfInput.value = "";
+    }
+});
 
 input.addEventListener("keydown", (event) => {
 
@@ -275,6 +324,26 @@ function addUserMessage(text) {
         </div>
     `;
 
+
+    chat.appendChild(message);
+
+    scrollToBottom();
+
+}
+
+function addAgentMessage(text) {
+
+    const message = document.createElement("div");
+
+    message.className = "message agent";
+
+    message.innerHTML = `
+        <img src="images/robot.svg" class="bubble-avatar">
+
+        <div class="bubble">
+            ${escapeHtml(text)}
+        </div>
+    `;
 
     chat.appendChild(message);
 

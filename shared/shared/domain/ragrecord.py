@@ -13,3 +13,7 @@ class RAGRecord(BaseModel):
 class RAGSearchResult(BaseModel):
     record: RAGRecord
     score: float
+
+class SearchRequest(BaseModel):
+    question: str
+    limit: int = 5

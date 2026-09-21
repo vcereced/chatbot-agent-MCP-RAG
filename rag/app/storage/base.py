@@ -7,10 +7,10 @@ class RAGRepository(ABC):
     def add(self, records: list[RAGRecord]) -> None:
         pass
 
-    # @abstractmethod
-    # def search(
-    #     self,
-    #     embedding: list[float],
-    #     limit: int = 5,
-    # ) -> list:
-    #     pass
+    @abstractmethod
+    def search(
+        self,
+        embedding: list[float],
+        limit: int = 5,
+    ) -> list[dict]:
+        pass

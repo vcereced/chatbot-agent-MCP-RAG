@@ -23,3 +23,28 @@ class ChromaRepository(RAGRepository):
                 for r in records
             ],
         )
+
+    def search(self, embedding: list[float], limit: int = 5) -> list[dict]:
+        results = self.collection.query(
+            query_embeddings=[embedding],
+            n_results=limit,
+            include=["documents", "metadatas", "distances"],
+        )
+
+        documents = results.get("documents", [[]])[0]
+        metadatas = results.get("metadatas", [[]])[0]
+        distances = results.get("distances", [[]])[0]
+        ids = results.get("ids", [[]])[0]
+
+        items = []
+        for doc, meta, distance, result_id in zip(documents, metadatas, distances, ids):
+            items.append({
+                "id": result_id,
+                "document_id": meta.get("document_id") if meta else None,
+                "chunk_id": meta.get("chunk_id") if meta else None,
+                "page": meta.get("page") if meta else None,
+                "text": doc,
+                "score": float(distance),
+            })
+
+        return items

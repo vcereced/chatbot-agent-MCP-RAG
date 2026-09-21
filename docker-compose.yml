@@ -95,8 +95,8 @@ services:
       context: ./rag
     expose:
       - "8000"
-    # ports:
-    #   - "8000:8000"
+    ports:
+      - "8001:8000"
     environment:
       PYTHONPATH: /shared
     volumes:

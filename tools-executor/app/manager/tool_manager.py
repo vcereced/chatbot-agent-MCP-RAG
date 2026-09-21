@@ -18,6 +18,7 @@ class ToolManager:
     ):
         self._registry = registry
         self._mcp_manager = mcp_manager
+        logger.info(self.get_definitions())
 
     def get_definitions(self) -> list[ToolDefinition]:
         """Devuelve todas las herramientas locales y MCP."""

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
+from shared.domain.ragrecord import SearchRequest
 import uuid
 from app.services.ingestion_service import IngestionService
 
@@ -12,7 +14,7 @@ def create_router(ingestion_service: IngestionService) -> APIRouter:
     @router.get("/health", status_code=200)
     async def health():
         return {"status": "ok"}
-    
+
     @router.post("/ingest_documents")
     async def ingest_document(file: UploadFile = File(...)):
         logger.info("Rag service started to ingest file.")
@@ -29,7 +31,14 @@ def create_router(ingestion_service: IngestionService) -> APIRouter:
         return {"chunks": chunks_count}
 
     @router.post("/search")
-    async def search():
-        pass
+    async def search(request: SearchRequest):
+        if not request.question or not request.question.strip():
+            raise HTTPException(status_code=400, detail="question is required.")
+
+        logger.info("Rag search request: %s", request.question)
+
+        results = ingestion_service.search(request.question, limit=request.limit)
+
+        return {"results": results}
 
     return router

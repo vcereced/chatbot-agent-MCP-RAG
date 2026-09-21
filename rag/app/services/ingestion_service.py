@@ -42,3 +42,7 @@ class IngestionService:
         self.repository.add(records)
         logger.info(f"Created ={len(records)} records of the document.")
         return len(records)
+
+    def search(self, query: str, limit: int = 2):
+        embedding = self.embedder.embed(query)
+        return self.repository.search(embedding.tolist(), limit=limit)
