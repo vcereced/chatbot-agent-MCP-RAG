@@ -30,21 +30,21 @@ async def generate(
         return GenerateResponse(result=result)
 
     except httpx.ConnectError as e:
-        logger.error(f"Cannot connect to Ollama: {str(e)}")
+        logger.error(f"Cannot connect to LLM provider: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Cannot connect to LLM provider service."
         )
 
     except httpx.TimeoutException as e:
-        logger.error(f"Ollama request timed out: {str(e)}")
+        logger.error(f"LLM provider request timed out: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="LLM provider request timed out."
         )
 
     except httpx.HTTPStatusError as e:
-        logger.error(f"Ollama HTTP error {e.response.status_code}: {e.response.text}")
+        logger.error(f"LLM provider HTTP error {e.response.status_code}: {e.response.text}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"LLM provider error: {e.response.text}"

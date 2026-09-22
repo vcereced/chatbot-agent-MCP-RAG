@@ -4,10 +4,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
 
-    # Configuración del Proveedor (Ollama)
+    LLM_PROVIDER: str = "ollama"
+
     OLLAMA_MODEL: str 
     OLLAMA_ENDPOINT: str = "/api/chat"
-    OLLAMA_BASE_URL: str  #si lo corremos en local y no en docker
+    OLLAMA_BASE_URL: str
+
+    GOOGLE_API_KEY: str | None = None
+    GOOGLE_MODEL: str = "gemini-2.5-flash"
     TIMEOUT: float = 300.0
 
     # Prompts de Sistema

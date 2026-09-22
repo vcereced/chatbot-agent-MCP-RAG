@@ -54,10 +54,13 @@ services:
       - ./shared:/shared
     environment:
       PYTHONPATH: /shared
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434} # first try expand var from env to swap url for testing
       OLLAMA_MODEL: qwen2.5:3b
       TIMEOUT: 300
       OLLAMA_ENDPOINT: /api/chat
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_MODEL: ${GOOGLE_MODEL:-gemini-2.5-flash}
     healthcheck: *healthcheck
       
 

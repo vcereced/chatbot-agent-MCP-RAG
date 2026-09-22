@@ -2,6 +2,8 @@ from shared.domain.message import Message
 from shared.domain.generate_result import GenerateResult
 from shared.domain.tooldefinition import ToolDefinition
 from shared.logging.logger import configure_logging
+from app.config import config
+from app.providers.base_provider import BaseProvider
 from app.providers.ollama_provider import OllamaProvider
 
 logger = configure_logging(__name__)
@@ -9,8 +11,20 @@ logger = configure_logging(__name__)
 
 class LLMService:
 
-    def __init__(self, provider: OllamaProvider | None = None) -> None:
-        self.llm_provider = provider or OllamaProvider()
+    def __init__(self, provider: BaseProvider | None = None) -> None:
+        self.llm_provider = provider or self._create_provider()
+
+    @staticmethod
+    def _create_provider() -> BaseProvider:
+        if config.LLM_PROVIDER == "ollama":
+            return OllamaProvider()
+        if config.LLM_PROVIDER == "google":
+            from app.providers.google_provider import GoogleProvider
+
+            return GoogleProvider()
+        raise ValueError(
+            f"Proveedor LLM no soportado: {config.LLM_PROVIDER}"
+        )
 
     async def generate(
         self, 

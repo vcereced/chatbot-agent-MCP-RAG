@@ -11,24 +11,21 @@ class MCPAdapter:
 
     @staticmethod
     def to_tool_definition(tool: types.Tool) -> ToolDefinition:
-        schema = tool.input_schema
-
-        properties = {
-            name: PropertyDefinition(
-                type=definition["type"],
-                description=definition.get("description"),
-            )
-            for name, definition in schema.get("properties", {}).items()
-        }
+        input_schema = ParameterDefinition.model_validate(tool.input_schema)
+        output_schema_data = tool.output_schema
+        output_schema = (
+            PropertyDefinition.model_validate(output_schema_data)
+            if output_schema_data is not None
+            else None
+        )
 
         return ToolDefinition(
             name=tool.name,
             description=tool.description or "",
-            input_schema=ParameterDefinition(
-                properties=properties,
-                required=schema.get("required", []),
-            ),
+            input_schema=input_schema,
+            output_schema=output_schema,
         )
+
     @staticmethod
     def to_tool_definitions(tools: list[types.Tool]) -> list[ToolDefinition]:
 

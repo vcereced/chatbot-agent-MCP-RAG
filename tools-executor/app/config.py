@@ -25,10 +25,10 @@ class Settings(BaseSettings):
             name=os.getenv("MCP_NAME_1", ""),
             url=os.getenv("MCP_URL_1", ""),
         ),
-        # MCPConfig(
-        #     name="zanreal",
-        #     url="https://zanreal.com/mcp",
-        # ),
+         MCPConfig(
+             name="kiwi",
+             url="https://mcp.kiwi.com",
+        ),
     ]
 
 

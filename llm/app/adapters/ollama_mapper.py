@@ -58,11 +58,10 @@ class OllamaMapper:
             properties = {}
 
             for name, definition in tool.input_schema.properties.items():
-
-                properties[name] = {
-                    "type": definition.type,
-                    "description": definition.description,
-                }
+                properties[name] = definition.model_dump(
+                    by_alias=True,
+                    exclude_none=True,
+                )
 
             ollama_tools.append({
                 "type": "function",
@@ -70,7 +69,10 @@ class OllamaMapper:
                     "name": tool.name,
                     "description": tool.description,
                     "input_schema": {
-                        "type": tool.input_schema.type,
+                        **tool.input_schema.model_dump(
+                            by_alias=True,
+                            exclude_none=True,
+                        ),
                         "properties": properties,
                         "required": tool.input_schema.required,
                     },

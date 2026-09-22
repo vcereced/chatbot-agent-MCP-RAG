@@ -25,6 +25,8 @@ class ChatService:
 
     async def chat(self, conversation_id: str | None, message: str, emitter: WebSocketEmitter, run_id) -> ChatResult:
 
+        n_iterations = 1
+        n_tools = 0
         logger.info(f"Processing chat id: {conversation_id}, message: {message}")
         logger.info("obteniendo conversacion")
         await emitter.status(run_id, "Obteniendo conversacion")
@@ -43,10 +45,15 @@ class ChatService:
         tools = await self.tools.list_tools()
 
         logger.info(f"Generating LLM response, {conversation}")
-        await emitter.status(run_id, "generando 1ª interaccion con llm")
+        await emitter.status(run_id, f"generando {n_iterations} interaccion con llm")
         result = await self.llm.generate(conversation, tools)
 
-        if result.tool_call:
+        max_iterations = 4
+
+        for iteration in range(max_iterations):
+            if result.tool_call is None:
+                break
+                # if sult.tool_call:
 
             # Guardar la llamada a la herramienta realizada por el LLM
             conversation.messages.append(
@@ -57,7 +64,8 @@ class ChatService:
             )
 
             logger.info(f"Executing tool {result.tool_call}")
-            await emitter.status(run_id, "ejecutando herramienta del agente")
+            n_tools += 1 
+            await emitter.status(run_id, f"ejecutando {n_tools} herramienta del agente")
             tool_result = await self.tools.execute(result.tool_call)
 
             logger.info(f"Executing tool {tool_result}")
@@ -72,8 +80,12 @@ class ChatService:
             )
 
             logger.info("generating llm with tool")
-            await emitter.status(run_id, "generando 2ª interaccion con llm")
-            result = await self.llm.generate(conversation, None)
+            n_iterations += 1
+            await emitter.status(run_id, f"generando {n_iterations} interaccion con llm")
+            result = await self.llm.generate(conversation, tools)
+
+        if result.tool_call is not None:
+            result.text = ("No he podido completar la consulta dentro del límite de operaciones permitido.")
 
         conversation.messages.append(
             Message(

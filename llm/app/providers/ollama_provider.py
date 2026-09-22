@@ -6,11 +6,12 @@ from shared.logging.logger import configure_logging
 from app.adapters.ollama_mapper import OllamaMapper
 from fastapi import HTTPException
 from app.config import config 
+from app.providers.base_provider import BaseProvider
 import os
 
 logger = configure_logging(__name__)
 
-class OllamaProvider:
+class OllamaProvider(BaseProvider):
 
     def __init__(self):
 

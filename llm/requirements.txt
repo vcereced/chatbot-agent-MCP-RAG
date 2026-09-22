@@ -3,3 +3,4 @@ uvicorn
 pydantic-settings
 httpx
 openai
+google-genai
