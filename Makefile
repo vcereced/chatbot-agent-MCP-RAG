@@ -37,10 +37,10 @@ clean:
 
 
 test:
-	@OLLAMA_BASE_URL=http://fake-llm:8000 docker compose up -d \
+	@OLLAMA_BASE_URL=http://fake-llm:8000 LLM_PROVIDER=ollama docker compose up -d \
 		agent fake-llm tools-executor memory mcp-filesystem rag \
 		>/tmp/chatbot-compose.log 2>&1
-	@OLLAMA_BASE_URL=http://fake-llm:8000 docker compose run --rm test-runner \
+	@OLLAMA_BASE_URL=http://fake-llm:8000 LLM_PROVIDER=ollama docker compose run --rm test-runner \
 		pytest -q --tb=short \
 		>/tmp/chatbot-test.log 2>&1; \
 	status=$$?; \
@@ -57,10 +57,10 @@ test:
 	exit $$status
 
 test-verbose:
-	OLLAMA_BASE_URL=http://fake-llm:8000 docker compose up -d \
+	OLLAMA_BASE_URL=http://fake-llm:8000 LLM_PROVIDER=ollama docker compose up -d \
 		agent fake-llm tools-executor memory mcp-filesystem rag
 
-	OLLAMA_BASE_URL=http://fake-llm:8000 docker compose run --rm test-runner \
+	OLLAMA_BASE_URL=http://fake-llm:8000 LLM_PROVIDER=ollama docker compose run --rm test-runner \
 		pytest -vv --tb=long; \
 	status=$$?; \
 	docker compose rm -sf fake-llm; \

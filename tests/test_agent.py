@@ -49,7 +49,7 @@ async def test_agent_executes_calculator_tool():
 
             if (
                 data["type"] == "status"
-                and data["message"] == "ejecutando herramienta del agente"
+                and data["message"] == "ejecutando 1 herramienta del agente"
             ):
                 tool_execution_started = True
 
