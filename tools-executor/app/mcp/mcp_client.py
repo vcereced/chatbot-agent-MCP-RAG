@@ -69,7 +69,7 @@ class MCPClient:
         try:
             result = await self.session.list_tools()
 
-            logger.info("DEBUG MCP tools/list response: %s", result.json())
+            logger.info("MCP '%s' returned %d tools", self.name, len(result.tools))
             return MCPAdapter.to_tool_definitions(
                 result.tools
             )

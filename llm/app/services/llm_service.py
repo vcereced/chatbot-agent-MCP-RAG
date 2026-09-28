@@ -32,11 +32,15 @@ class LLMService:
         tools: list[ToolDefinition] | None
     ) -> GenerateResult:
         
-        logger.info(f"LLMService: procesando {len(messages) if messages else 0} mensajes.")
+        logger.info(
+            "Generating response messages=%d tools=%d provider=%s",
+            len(messages or []),
+            len(tools or []),
+            config.LLM_PROVIDER,
+        )
         
         # El servicio delega la ejecución al provider.
         # Si httpx falla, la excepción sube limpiamente hacia el Router.
         result = await self.llm_provider.generate(messages or [], tools)
         
-        logger.debug(f"Resultado de LLMService: {result}")
         return result

@@ -38,9 +38,7 @@ class IngestionService:
                 )
             )
 
-        logger.info(records)
         self.repository.add(records)
-        logger.info(f"Created ={len(records)} records of the document.")
         return len(records)
 
     def search(self, query: str, limit: int = 2):

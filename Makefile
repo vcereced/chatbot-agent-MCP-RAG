@@ -59,7 +59,7 @@ test:
 test-verbose:
 	OLLAMA_BASE_URL=http://fake-llm:8000 LLM_PROVIDER=ollama docker compose up -d \
 		agent fake-llm tools-executor memory mcp-filesystem rag
-
+	echo "running test service"
 	OLLAMA_BASE_URL=http://fake-llm:8000 LLM_PROVIDER=ollama docker compose run --rm test-runner \
 		pytest -vv --tb=long; \
 	status=$$?; \
