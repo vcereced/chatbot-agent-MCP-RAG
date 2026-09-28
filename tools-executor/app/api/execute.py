@@ -18,10 +18,17 @@ async def execute(
 
     service = request.app.state.tool_service
 
-    logger.info("Executing tool request: %s", body.tool_call.name)
+    logger.info("Tool request received name=%s", body.tool_call.name)
 
     tool_result = await service.execute(
         body.tool_call
+    )
+
+    logger.info(
+        "Tool request completed name=%s success=%s duration_ms=%s",
+        tool_result.tool_name,
+        tool_result.success,
+        tool_result.execution_time_ms,
     )
 
     return ExecuteToolResponse(
@@ -36,9 +43,9 @@ def list_tools(
 
     service = request.app.state.tool_service
 
-    logger.info("GET /tools requested")
-
     tools = service.list_tools()
+
+    logger.info("Tool definitions listed count=%d", len(tools))
 
     return ListToolsResponse(
         tools=tools

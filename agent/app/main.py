@@ -12,8 +12,6 @@ app = FastAPI()
 # Incluir el router donde está el websocket /ws
 app.include_router(chat_router)
 
-logger.info("=== RUTAS DE LA APP ===")
-
 @app.get("/health", status_code=200)
 @app.get("/")
 def root():

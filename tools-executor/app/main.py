@@ -11,7 +11,7 @@ from app.service.tool_service import ToolService
 from app.tools.calculator import CalculatorTool
 from app.tools.datetime import DateTimeTool
 from app.tools.rag_search import RAGSearchTool
-from shared.logging.logger import configure_logging
+from shared.logging.logger import configure_logging, RunIDMiddleware
 
 
 logger = configure_logging(__name__)
@@ -25,8 +25,8 @@ async def lifespan(app: FastAPI):
     # Local tools
     registry = ToolRegistry()
     registry.register(CalculatorTool())
-    registry.register(DateTimeTool())
-    registry.register(RAGSearchTool())
+    # registry.register(DateTimeTool())
+    # registry.register(RAGSearchTool())
 
     # MCP servers
     mcp_manager = MCPManager(settings.mcp_servers)
@@ -57,6 +57,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(RunIDMiddleware)
+
 
 app.include_router(execute_router)
 

@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from app.api.memory import router as memory_router
+from shared.logging.logger import configure_logging, RunIDMiddleware
 
-from shared.logging.logger import configure_logging
 
 logger = configure_logging(__name__)
 
 app = FastAPI()
+app.add_middleware(RunIDMiddleware)
+
+
 app.include_router(memory_router)
 
 

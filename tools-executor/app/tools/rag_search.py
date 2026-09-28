@@ -1,6 +1,7 @@
 import httpx
 
 from app.tools.base import BaseTool
+from shared.logging.logger import run_id_context
 from shared.domain.tooldefinition import (
     ToolDefinition,
     ParameterDefinition,
@@ -32,7 +33,7 @@ class RAGSearchTool(BaseTool):
 
     async def execute(self, arguments: dict[str, object]) -> object:
         query = arguments.get("question")
-        if not "question" or not isinstance("question", str):
+        if not isinstance(query, str) or not query.strip():
             raise ValueError("Parameter 'question' must be a non-empty string.")
 
         limit = arguments.get("limit", 2)
@@ -42,9 +43,12 @@ class RAGSearchTool(BaseTool):
             except ValueError as exc:
                 raise ValueError("Parameter 'limit' must be an integer.") from exc
 
+        run_id = run_id_context.get()
+        headers = {"X-Run-ID": run_id} if run_id is not None else {}
         response = httpx.post(
             "http://rag:8000/search",
-            json={"question": "question", "limit": limit},
+            json={"question": query, "limit": limit},
+            headers=headers,
             timeout=30,
         )
         response.raise_for_status()
