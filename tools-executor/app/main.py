@@ -24,9 +24,9 @@ async def lifespan(app: FastAPI):
 
     # Local tools
     registry = ToolRegistry()
-    registry.register(CalculatorTool())
-    # registry.register(DateTimeTool())
-    # registry.register(RAGSearchTool())
+    registry.register(CalculatorTool()) 
+    registry.register(DateTimeTool())
+    registry.register(RAGSearchTool())
 
     # MCP servers
     mcp_manager = MCPManager(settings.mcp_servers)
