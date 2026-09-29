@@ -1,190 +1,144 @@
-# Chatbot Agent + tools + MCP 
+# Chatbot Agent + tools + MCP + RAG
+Este proyecto ejecuta un agente distribuido en microservicios, diseñado para ser modular, escalable y portable a distintos proveedores de IA, bdd y herramientas.
 
-Un agente conversacional que ejecuta tools distribuido por microservicios, diseñado para ser modular, reutilizable, escalable y fácil de adaptar a distintos proveedores de IA, persistencia o herramientas.
-
-Este proyecto no es solo un chatbot: es una base para construir un agente conversacional distribuido con una arquitectura preparada para crecer y migrar sin romper el sistema.
-
----
 
 ## Visión general
+El proyecto está distribuido y por capas para no acoplarse. Los servicios se comunican con contratos compartidos en `shared/` y validados por `pydantic`.
 
-Este proyecto implementa un chatbot con una arquitectura orientada a microservicios y capas:
+- **Agent:** coordina el flujo e informa al frontend en tiempo real mediante WebSockets.
+- **LLM:** integra proveedores de modelos de lenguaje, como Ollama en local o Google Gemini.
+- **Memory:** recupera y guarda el historial de conversación. Actualmente, el almacenamiento es en memoria.
+- **Tools Executor:** ejecuta herramientas locales y herramientas descubiertas en servidores MCP.
+- **Nginx:** sirve el frontend y enruta las conexiones WebSocket y las peticiones HTTP correspondientes.
+- **RAG:** procesa documentos y permite buscar información en ellos.
 
-- Agent: coordina, gestiona el flujo informando por Websockets al front, invoca a otros servicios y orquesta la interacción con herramientas.
-- LLM: encapsula la integración con el modelo de lenguaje (en este caso, Ollama).
-- Memory: gestiona la persistencia del estado de la conversación y el historial.
-- Tools Executor: ejecuta herramientas locales y tools descubiertas desde servidores MCP.
-- Nginx: sirve la capa de frontend y actúa como entrada HTTP para la aplicación.
-- Ollama: motor local de inferencia para el modelo de lenguaje.
+Puedes cambiar, manteniendo los contratos entre servicios:
 
-La arquitectura está pensada para evolucionar sin acoplarse a un proveedor concreto. Puedes cambiar:
+- el almacenamiento de las conversaciones;
+- el proveedor o el modelo de IA;
+- la capa de presentación;
+- la implementación de la búsqueda documental (RAG).
 
-- la base de datos de memoria,
-- el modelo de IA,
-- el proveedor de LLM,
-- la lógica de herramientas,
-- la capa de presentación,
+Puedes extender:
 
-sin reescribir necesariamente la lógica principal del agente.
+- el conjunto de herramientas locales;
+- los servidores MCP conectados.
 
----
 
-## Principios de diseño
+## Arquitectura general
 
-### 1. Arquitectura distribuida por microservicios
+```mermaid
+flowchart TB
+   %% --- Top ---
+   USER[User] <--> UI[Nginx / UI]
 
-Cada servicio tiene una responsabilidad clara y se comunica a través de contratos HTTP/JSON o de modelos compartidos.
+   %% --- Center ---
+   UI <--> AGENT[Agent Service<br/>ORCHESTRATOR]
 
-### 2. Arquitectura por capas
+   %% --- Around Agent ---
+   AGENT <--> LLM[LLM Service]
+   AGENT <--> MEMORY[Memory Service]
+   AGENT <--> TOOLS[Tools Executor Service]
 
-Cada servicio sigue una estructura similar:
+   %% --- LLM providers ---
+   LLM <--> OLLAMA[Ollama Service LOCAL]
+   LLM <--> GOOGLE[Google API ONLINE]
 
-- app/main.py
-- app/config.py
-- app/api/
-- app/service/
-- app/clients/
-
-Esto facilita:
-
-- mantener una lógica consistente,
-- localizar cambios por responsabilidad,
-- reutilizar módulos en otros proyectos,
-- migrar piezas sin tocar la capa de dominio.
-
-### 3. Contratos explícitos entre servicios
-
-Los modelos y contratos compartidos viven en `shared/`, para evitar que cada microservicio defina su propia versión del mismo dominio.
-
-Esto permite:
-
-- mantener una representación única de la conversación,
-- estandarizar mensajes, resultados y llamadas a herramientas,
-- reducir errores de integración entre servicios.
-
-### 4. Extensibilidad
-
-La capa de herramientas es registrable y reutilizable. Si se añade una nueva herramienta, el agente puede descubrirla y usarla sin cambiar toda la lógica de coordinación.
-
-### 5. Portabilidad
-
-El servicio de LLM y la capa de almacenamiento están desacoplados de la lógica de negocio. Esto es el punto clave para migrar de una base de datos o de un proveedor de IA sin romper el comportamiento global.
-
----
-
-## Arquitectura del proyecto
-
-```text
-┌─────────────────────┐
-authoring / browser / ui
-└──────────┬──────────┘
-           │ WS
-           ▼
-┌─────────────────────┐
-│       nginx          │
-│   Frontend / proxy  │
-└──────────┬──────────┘
-           │
-           ▼ WS
-┌─────────────────────┐
-│       agent          │
-│   Orquestador       │
-│  - router            │
-│  - service           │
-│  - clients           │
-│  - ws/session        │
-└─────┬───────┬───────┘
-      │       │ HTTP
-      │       ├───────────────► tools-executor
-      │                       │    execute local tools and MCP tools
-      │                       └── MCPManager ─────► MCP servers
-      │                                           (streamable HTTP)
-      │ HTTP
-      ├───────────────► llm
-      │                 │ generate responses
-      │ HTTP
-      └───────────────► memory
-                        │ persist conversation state
+   %% --- Tools ---
+   TOOLS <--> MCP[MCPs Servers ONLINE]
+   TOOLS <--> RAG[RAG Service LOCAL]
+   TOOLS <--> FILES[MCP Filesystem Service LOCAL]
 ```
 
-## Servicios y responsabilidades
-
-### Agent
-
-Responsable de:
-
-- recibir mensajes del cliente,
-- coordinar la interacción,
-- invocar LLM y herramientas,
-- manejar la conversación y el estado del flujo.
-
-### LLM
-
-Responsable de:
-
-- serializar mensajes,
-- encapsular llamadas a Ollama,
-- transformar respuestas internas a contratos del dominio.
-
-### Memory
-
-Responsable de:
-
-- guardar y recuperar conversaciones,
-- mantener el historial,
-- ofrecer operaciones CRUD o de lectura para el agente.
-
-### Tools Executor
-
-Responsable de:
-
-- registrar herramientas,
-- conectarse a servidores MCP y descubrir sus tools,
-- ejecutar herramientas locales o remotas,
-- manejar timeouts, errores y resultados estandarizados.
-
-### Servidores MCP
-
-El chatbot puede consumir tools publicadas por servidores MCP a través de
-`tools-executor`.
-
-#### Shared
-
-La capa `shared` es un punto clave de la arquitectura. Aquí se definen:
-
-- modelos del dominio: mensajes, conversaciones, resultados, herramientas
-- requests y responses para HTTP
-- resultados de generación del LLM
-- definiciones de herramienta
-- errores comunes
-
-Esto facilita que cada microservicio trabaje con tipos estandarizados.
-
+Ej. el agente responde que hora es:
 ---
 
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant L as LLM
+    participant T as Tools
+    participant M as Memory
+  
 
-## Flujo de conversación
+    U->>A: Message(Que hora es?)
+    A->>M: GetConversation()
+    M-->>A: Conversation
+    A->>T: GetTools()
+    T-->>A: ListTools(Datetime(), read(), write()...
+    A->>L: Conversation.append(Message,ListTools)
+    L-->>A: Toolcall(Datetime())
+    A->>T: ExecuteTool(Datetime())
+    T-->>A: ToolResult(14:00:00)
+ 
+    A->>L: Conversation.append(ToolResult)
+    L-->>A: Response
+    A->>M: SaveConversation()
+    A->>U: Answer
+```
+## Requisitos previos
 
-El flujo general del agente se puede resumir así:
+Antes de iniciar el proyecto, asegúrate de tener instalado:
 
-1. El usuario envía un mensaje desde la UI o desde una petición HTTP/WebSocket.
-2. El servicio `agent` recibe la solicitud.
-3. El agente obtiene o crea la conversación asociada.
-4. Consulta la memoria para recuperar el contexto relevante.
-5. Solicita al servicio `llm` una respuesta con el historial y las herramientas disponibles.
-6. Si el modelo decide invocar una herramienta, el `agent` la ejecuta a través de `tools-executor`.
-7. El resultado de la herramienta se incorpora al contexto de la conversación.
-8. El modelo genera una respuesta final con la información obtenida.
-9. El agente guarda la conversación y devuelve la respuesta al cliente.
+- Docker
+- Docker Compose v2
+- Make
+- Git
 
-Este modelo permite tener una lógica de agente bastante clara y una separación nítida entre:
+### Proveedor de IA
 
-- coordinación del flujo,
-- generación del texto,
-- ejecución de herramientas,
-- persistencia del contexto.
+Por defecto, el proyecto usa Ollama con el modelo local `qwen2.5:3b`. Para elegir otro modelo local, define `OLLAMA_MODEL` en el archivo `.env` de la raíz. Ollama descargará el modelo si todavia no esta disponible. Se recomienda definir google gemini para levantar mas rapido el proyecto.
+| Variable | Uso | Valor|
+|---|---|---|
+| `LLM_PROVIDER` | Proveedor del modelo | `ollama` |
+| `OLLAMA_MODEL` | Modelo local usado por Ollama. | `qwen2.5:3b` |
 
----
+Como alternativa, puedes usar Google Gemini. Configura tu clave de API en `.env`.Al usar Gemini no levanta ni descarga Ollama y su modelo por defecto.
+
+| Variable | Uso | Valor|
+|---|---|---|
+| `LLM_PROVIDER` | Proveedor del modelo | `google` |
+| `GOOGLE_API_KEY` | Clave necesaria para usar Google Gemini. | tu api key |
+| `GOOGLE_MODEL` | Modelo de Google Gemini. | `gemini-2.5-flash` |
+
+## Ejecutar
+
+```bash
+git clone https://github.com/vcereced/chatbot-agent-MCP-RAG.git
+cd chatbot-agent-MCP-RAG
+make up
+```
+Despues abre en el navegador: 
+```bash
+http://localhost:8080
+``` 
+Para detener los servicios, ejecuta `make down` o `docker compose down`.
+
+## Testing
+Los tests de `tests/` se ejecutan con Pytest. `make test` levanta los servicios necesarios excepto Ollama y usa `fake-llm` para simular respuestas del proveedor de IA de forma determinista. No necesitas iniciar Ollama ni configurar una clave de Google.
+
+Ejecuta desde la raíz:
+
+```bash
+make test
+```
+El comando muestra `TESTS PASSED` o `TESTS FAILED`. Para ver la salida detallada de Pytest, ejecuta:
+```bash
+make test-verbose
+```
+`make test` también puede usarse en un workflow de CI para validar los cambios automáticamente.
+
+## Tecnologías utilizadas
+
+| Categoría | Tecnologías |
+|---|---|
+| Backend | Python 3.x, FastAPI, Uvicorn, WebSockets, Pydantic, Pydantic Settings,HTTPX  |
+| IA y llm | Ollama, Google GenAI, MCP |
+| RAG | ChromaDB, PyMuPDF, Sentence Transformers |
+| Infraestructura | Docker, Docker Compose, Nginx |
+| Testing | Pytest, pytest-asyncio |
+
 
 ## Desarrollo y extensión
 
@@ -195,6 +149,7 @@ Se recomienda mantener la misma estructura base:
 ```text
 nuevo_servicio/
 ├── requirements.txt
+│   Dockerfile
 ├── app/
 │   ├── main.py
 │   ├── config.py
@@ -204,140 +159,51 @@ nuevo_servicio/
 │   └── domain/
 ```
 
-### Añadir una nueva herramienta
+### Añadir una herramienta local
 
-1. Crear un archivo dentro de `tools-executor/app/tools/` e implementar la
-      tool siguiendo el patrón de las herramientas existentes.
-2. Importar la tool y registrarla en
-      `tools-executor/app/main.py`, dentro del bloque de herramientas locales:
+1. Crea un archivo en `tools-executor/app/tools/` e implementa la herramienta como una subclase de `BaseTool`. Debe definir:
+   - `get_definition()`, que devuelve su nombre, descripción y esquema de argumentos.
+   - `execute(arguments)`, que ejecuta la herramienta de forma asíncrona.
 
-      ```python
-      # Local tools
-      registry = ToolRegistry()
-      registry.register(CalculatorTool())
-      registry.register(DateTimeTool())
-      ```
+2. Importa la nueva clase en `tools-executor/app/main.py` y regístrala dentro del bloque `# Local tools` de `lifespan`:
 
-      Añade una llamada `registry.register(NuevaTool())` para cada nueva tool.
+   ```python
+   from app.tools.nueva_herramienta import NuevaTool
 
-### Añadir una nuevo servidor MCP
-1. Añade el servicio MCP a `docker-compose.yml` y asegúrate de que se levanta
-      dentro de la misma red de Docker Compose.
-2. Añade su configuración a la lista `mcp_servers` de
-      `tools-executor/app/config.py`:
+   # Local tools
+   registry = ToolRegistry()
+   registry.register(CalculatorTool())
+   registry.register(DateTimeTool())
+   registry.register(RAGSearchTool())
+   registry.register(NuevaTool())
 
-      ```python
-      # MCPConfig(
-      #     name="github",
-      #     url="http://mcp-github:8000/mcp",
-      # ),
-      ```
+### Añadir y Conectar un servidor MCP
 
-      La URL debe usar el nombre del servicio definido en Docker Compose y el
-      endpoint MCP que exponga ese servidor.
-3. Levanta o reconstruye los servicios con `docker compose up --build`. Al
-      iniciar, `tools-executor` se conecta a los servidores configurados y
-      descubre automáticamente sus tools.
+El proyecto puede conectarse a servidores MCP locales o online, siempre que sean compatibles con el transporte MCP Streamable HTTP (no stdio) y que el servicio `tools-executor` pueda acceder a ellos.
 
+1. **Servidor local en Docker Compose:** añade el servicio MCP a docker-compose.yml y añadirlo en `depends_on` de `tools-executor`.
 
-### Cambiar proveedor de IA
+2. Añade una entrada a `mcp_servers` dentro de Settings en [tools-executor/app/config.py](../tools-executor/app/config.py):
 
-Solo afecta a la capa `llm` y a su adaptador/provider. El resto del proyecto no debería cambiar si el contrato compartido se mantiene.
+   ```python
+   MCPConfig(
+       name="nombre_mcp_server",
+       url="http://mcp-nuevo-servicio:8000/mcp",
+   ),
+   MCPConfig(
+       name="otro_MCP_server",
+       url="http://mcp-nuevo-servicio2:8000/mcp",
+   ),
+   ```
+3. Configura la URL según dónde se ejecute el servidor:
+   - En Docker Compose, usa el nombre del servicio, por ejemplo `http://mcp-github:8000/mcp`.
+   - Para un servidor online, usa su endpoint MCP público.
 
-### Cambiar base de datos
-
-La capa `memory` puede cambiar sin afectar la lógica del agente, siempre que se respeten los contratos del dominio.
-
-## Tecnologías utilizadas
-
-- Python 3.x
-- FastAPI
-- Uvicorn
-- Docker
-- Docker Compose
-- Ollama
-- Nginx
-- Pydantic
-- WebSockets
-
----
-
-## Requisitos previos
-
-Antes de iniciar el proyecto, asegúrate de tener instalado:
-
-- Docker
-- Docker Compose
-- Make
-- Git
-- Python 3.10+ (si quieres ejecutar servicios localmente fuera de contenedores)
-
----
-
-## Variables de entorno
-
-El proyecto usa variables de entorno para desacoplar la infraestructura de la lógica del negocio. En `docker-compose.yml` se configuran servicios como:
-
-- `LLM_URL`
-- `TOOLS_URL`
-- `MEMORY_URL`
-- `REQUEST_TIMEOUT`
-- `OLLAMA_BASE_URL`
-- `OLLAMA_MODEL`
-- `OLLAMA_ENDPOINT`
-- `TOOL_TIMEOUT_SECONDS`
-
-Esto permite cambiar la ubicación del LLM, la persistencia o una herramienta sin tocar la lógica principal.
-
----
-
-## Inicio rápido
-
-### 1. Clonar el repositorio
+Después de configurar el servidor, levanta los servicios:
 
 ```bash
-git clone <url-del-repositorio>
-cd chatbot-agent
+docker compose up --build 
 ```
 
-### 2. Construir y levantar los servicios
-
-```bash
-docker compose up --build
-```
-
-o con el Makefile:
-
-```bash
-make build
-```
-
-### 3. Verificar servicios
-
-```bash
-docker compose ps
-```
-
-### 4. Ver logs
-
-```bash
-make logs
-```
-
-### 5. Parar la infraestructura
-
-```bash
-docker compose down
-```
-
-o
-
-```bash
-make down
-```
-
----
-
-
-
+Al iniciar, `tools-executor` se conecta a los servidores configurados locales y online y descubre sus herramientas para ofrecerlas al agente. Si el servidor online requiere autenticacion no conectara.
 

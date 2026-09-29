@@ -420,3 +420,164 @@ Su principal valor no es solo que funcione, sino que sea capaz de evolucionar si
 - mantener la lógica del negocio desacoplada de la infraestructura.
 
 Este enfoque hace que el proyecto sea más fácil de mantener, más seguro frente a cambios y más apropiado para crecer en equipos o proyectos reales.
+
+
+## Principios de diseño
+
+### 1. Arquitectura distribuida por microservicios
+
+Cada servicio tiene una responsabilidad clara y se comunica a través de contratos HTTP/JSON o de modelos compartidos.
+
+### 2. Arquitectura por capas
+
+Cada servicio sigue una estructura similar:
+
+- app/main.py
+- app/config.py
+- app/api/
+- app/service/
+- app/clients/
+
+Esto facilita:
+
+- mantener una lógica consistente,
+- localizar cambios por responsabilidad,
+- reutilizar módulos en otros proyectos,
+- migrar piezas sin tocar la capa de dominio.
+
+### 3. Contratos explícitos entre servicios
+
+Los modelos y contratos compartidos viven en `shared/`, para evitar que cada microservicio defina su propia versión del mismo dominio.
+
+Esto permite:
+
+- mantener una representación única de la conversación,
+- estandarizar mensajes, resultados y llamadas a herramientas,
+- reducir errores de integración entre servicios.
+
+### 4. Extensibilidad
+
+La capa de herramientas es registrable y reutilizable. Si se añade una nueva herramienta, el agente puede descubrirla y usarla sin cambiar toda la lógica de coordinación.
+
+### 5. Portabilidad
+
+El servicio de LLM y la capa de almacenamiento están desacoplados de la lógica de negocio. Esto es el punto clave para migrar de una base de datos o de un proveedor de IA sin romper el comportamiento global.
+
+---
+
+
+## Arquitectura del proyecto
+
+```text
+┌─────────────────────┐
+authoring / browser / ui
+└──────────┬──────────┘
+           │ WS
+           ▼
+┌─────────────────────┐
+│       nginx          │
+│   Frontend / proxy  │
+└──────────┬──────────┘
+           │
+           ▼ WS
+┌─────────────────────┐
+│       agent          │
+│   Orquestador       │
+│  - router            │
+│  - service           │
+│  - clients           │
+│  - ws/session        │
+└─────┬───────┬───────┘
+      │       │ HTTP
+      │       ├───────────────► tools-executor
+      │                       │    execute local tools and MCP tools
+      │                       └── MCPManager ─────► MCP servers
+      │                                           (streamable HTTP)
+      │ HTTP
+      ├───────────────► llm
+      │                 │ generate responses
+      │ HTTP
+      └───────────────► memory
+                        │ persist conversation state
+```
+
+## Servicios y responsabilidades
+
+### Agent
+
+Responsable de:
+
+- recibir mensajes del cliente,
+- coordinar la interacción,
+- invocar LLM y herramientas,
+- manejar la conversación y el estado del flujo.
+
+### LLM
+
+Responsable de:
+
+- serializar mensajes,
+- encapsular llamadas a Ollama,
+- transformar respuestas internas a contratos del dominio.
+
+### Memory
+
+Responsable de:
+
+- guardar y recuperar conversaciones,
+- mantener el historial,
+- ofrecer operaciones CRUD o de lectura para el agente.
+
+### Tools Executor
+
+Responsable de:
+
+- registrar herramientas,
+- conectarse a servidores MCP y descubrir sus tools,
+- ejecutar herramientas locales o remotas,
+- manejar timeouts, errores y resultados estandarizados.
+
+### Servidores MCP
+
+El chatbot puede consumir tools publicadas por servidores MCP a través de
+`tools-executor`.
+
+#### Shared
+
+La capa `shared` es un punto clave de la arquitectura. Aquí se definen:
+
+- modelos del dominio: mensajes, conversaciones, resultados, herramientas
+- requests y responses para HTTP
+- resultados de generación del LLM
+- definiciones de herramienta
+- errores comunes
+
+Esto facilita que cada microservicio trabaje con tipos estandarizados.
+
+---
+
+
+## Flujo de conversación
+
+El flujo general del agente se puede resumir así:
+
+1. El usuario envía un mensaje desde la UI o desde una petición HTTP/WebSocket.
+2. El servicio `agent` recibe la solicitud.
+3. El agente obtiene o crea la conversación asociada.
+4. Consulta la memoria para recuperar el contexto relevante.
+5. Solicita al servicio `llm` una respuesta con el historial y las herramientas disponibles.
+6. Si el modelo decide invocar una herramienta, el `agent` la ejecuta a través de `tools-executor`.
+7. El resultado de la herramienta se incorpora al contexto de la conversación.
+8. El modelo genera una respuesta final con la información obtenida.
+9. El agente guarda la conversación y devuelve la respuesta al cliente.
+
+Este modelo permite tener una lógica de agente bastante clara y una separación nítida entre:
+
+- coordinación del flujo,
+- generación del texto,
+- ejecución de herramientas,
+- persistencia del contexto.
+
+---
+
+

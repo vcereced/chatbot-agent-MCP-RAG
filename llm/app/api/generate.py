@@ -1,5 +1,6 @@
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.genai.errors import APIError as GoogleAPIError
 from time import perf_counter
 from app.schemas import GenerateRequest, GenerateResponse
 from app.services.llm_service import LLMService
@@ -11,7 +12,14 @@ router = APIRouter(tags=["LLM Generation"])
 
 
 def get_llm_service() -> LLMService:
-    return LLMService()
+    try:
+        return LLMService()
+    except ValueError as exc:
+        logger.error("Invalid LLM provider configuration: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM provider is not configured correctly.",
+        ) from exc
 
 
 @router.post(
@@ -53,6 +61,38 @@ async def generate(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="LLM provider request timed out."
         )
+
+    except httpx.RequestError:
+        logger.exception("Network error while contacting LLM provider")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cannot communicate with LLM provider service.",
+        )
+
+    except GoogleAPIError as e:
+        logger.exception("Google GenAI API request failed status_code=%s", e.code)
+        if e.code == status.HTTP_429_TOO_MANY_REQUESTS:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Google GenAI quota or rate limit exceeded.",
+            ) from e
+
+        if e.code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Google GenAI authentication or permission check failed.",
+            ) from e
+
+        if e.code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Google GenAI model or endpoint was not found.",
+            ) from e
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Google GenAI provider returned an error.",
+        ) from e
 
     except httpx.HTTPStatusError as e:
         logger.error(
