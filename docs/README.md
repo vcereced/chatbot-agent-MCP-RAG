@@ -232,7 +232,7 @@ nuevo_servicio/
 
 ### Añadir y Conectar un servidor MCP
 
-El proyecto puede conectarse a servidores MCP locales o online, siempre que sean compatibles con el transporte MCP Streamable HTTP (no stdio) y que el servicio `tools-executor` pueda acceder a ellos.
+El proyecto puede conectarse a servidores MCP locales o online, siempre que sean compatibles con el transporte MCP Streamable HTTP (no stdio) para que el servicio `tools-executor` pueda acceder a ellos.
 
 1. **Servidor local en Docker Compose:** añade el servicio MCP a docker-compose.yml y añadirlo en `depends_on` de `tools-executor`.
 
