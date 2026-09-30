@@ -57,7 +57,7 @@ class ChatService:
         await emitter.status(run_id, f"generando {n_iterations} interaccion con llm")
         result = await self.llm.generate(conversation, tools)
 
-        max_iterations = 4
+        max_iterations = 10
 
         for iteration in range(max_iterations):
             if result.tool_call is None:

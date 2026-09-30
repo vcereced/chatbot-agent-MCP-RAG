@@ -1,17 +1,17 @@
-COMPOSE=docker compose
-
 .PHONY: up down build restart logs ps clean shell test test-verbose
 
+COMPOSE := docker compose
+BASE_SERVICES := nginx agent llm tools-executor memory mcp-filesystem rag
+LLM_PROVIDER := $(shell awk -F= '/^LLM_PROVIDER=/ {print $$2; exit}' .env 2>/dev/null)
+
+ifeq ($(LLM_PROVIDER),google)
+UP_SERVICES := $(BASE_SERVICES)
+else
+UP_SERVICES := $(BASE_SERVICES) ollama
+endif
+
 up:
-	docker compose up \
-		nginx \
-		agent \
-		llm \
-		tools-executor \
-		memory \
-		ollama \
-		mcp-filesystem \
-		rag
+	$(COMPOSE) up --build $(UP_SERVICES)
 
 build:
 	$(COMPOSE) up --build

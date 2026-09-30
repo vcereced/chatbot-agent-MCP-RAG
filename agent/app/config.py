@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     LLM_URL: str 
     TOOLS_URL: str 
     MEMORY_URL: str  
-    REQUEST_TIMEOUT: str  
+    REQUEST_TIMEOUT: str
 
 @lru_cache
 def get_settings() -> Settings:
