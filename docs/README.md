@@ -29,29 +29,68 @@ Puedes extender:
 
 ```mermaid
 flowchart TB
-   %% --- Top ---
-   USER[User] <--> UI[Nginx / UI]
 
-   %% --- Center ---
-   UI <--> AGENT[Agent Service<br/>ORCHESTRATOR]
+    %% =========================
+    %% USER
+    %% =========================
+    USER[👤 User]
+    
+    %% =========================
+    %% YOUR SYSTEM
+    %% =========================
+    subgraph SYSTEM["Chatbot-agent"]
+        direction TB
 
-   %% --- Around Agent ---
-   AGENT <--> LLM[LLM Service]
-   AGENT <--> MEMORY[Memory Service]
-   AGENT <--> TOOLS[Tools Executor Service]
+        UI["Nginx / UI<br/>"]
 
-   %% --- LLM providers ---
-   LLM <--> OLLAMA[Ollama Service LOCAL]
-   LLM <--> GOOGLE[Google API ONLINE]
+        subgraph SERVICES["Docker Services"]
+            direction TB
 
-   %% --- Tools ---
-   TOOLS <--> MCP[MCPs Servers ONLINE]
-   TOOLS <--> RAG[RAG Service LOCAL]
-   TOOLS <--> FILES[MCP Filesystem Service LOCAL]
+            AGENT["Agent Service<br/>ORCHESTRATOR"]
+            LLM["LLM Service"]
+            MEMORY["Memory Service"]
+            TOOLS["Tools Executor Service"]
+
+            OLLAMA["Ollama Service<br/>"]
+            RAG["RAG Service<br/>"]
+            FILES["MCP Filesystem<br/>"]
+        end
+
+        UI <--> AGENT
+
+        AGENT <--> LLM
+        AGENT <--> MEMORY
+        AGENT <--> TOOLS
+
+        LLM <--> OLLAMA
+        TOOLS <--> RAG
+        TOOLS <--> FILES
+    end
+
+    %% =========================
+    %% EXTERNAL RESOURCES
+    %% =========================
+    subgraph EXTERNAL["EXTERNAL RESOURCES — ONLINE"]
+        direction TB
+
+        GOOGLE["Google API"]
+        MCP["MCP Servers"]
+    end
+
+    %% =========================
+    %% ENTRY POINT
+    %% =========================
+    USER <-->|"WebSocket<br/>:8080"| UI
+
+    %% =========================
+    %% EXTERNAL CONNECTIONS
+    %% =========================
+    LLM <-->|"HTTPS / API"| GOOGLE
+    TOOLS <-->|"HTTPS / MCP"| MCP
 ```
 
-Ej. el agente responde que hora es:
----
+#### Ej. Que hora es?
+
 
 ```mermaid
 sequenceDiagram
@@ -77,6 +116,10 @@ sequenceDiagram
     A->>M: SaveConversation()
     A->>U: Answer
 ```
+Cuando el LLM solicita una herramienta, el agente ejecuta, añade resultado a la conversación y vuelve a consultar al LLM. Este loop se repite hasta obtener la solución o alcanzar el limite de iteraciones definido.
+
+Un ejemplo interesante: conecta el MCP server https://mcp.kiwi.com que ofrece busqueda de vuelos. [Añadir MCP](#añadir-y-conectar-un-servidor-mcp). Pide al agente una ruta y podras obserbar en tiempo real como interactua n veces con los diferentes servicios.
+
 ## Requisitos previos
 
 Antes de iniciar el proyecto, asegúrate de tener instalado:
@@ -86,13 +129,13 @@ Antes de iniciar el proyecto, asegúrate de tener instalado:
 - Make
 - Git
 
-### Proveedor de IA
+## Proveedor de IA
 
 Por defecto, el proyecto usa Ollama con el modelo local `qwen2.5:3b`. Para elegir otro modelo local, define `OLLAMA_MODEL` en el archivo `.env` de la raíz. Ollama descargará el modelo si todavia no esta disponible. Se recomienda definir google gemini para levantar mas rapido el proyecto.
 | Variable | Uso | Valor|
 |---|---|---|
 | `LLM_PROVIDER` | Proveedor del modelo | `ollama` |
-| `OLLAMA_MODEL` | Modelo local usado por Ollama. | `qwen2.5:3b` |
+| `OLLAMA_MODEL` | Modelo local por defecto. | `qwen2.5:3b` |
 
 Como alternativa, puedes usar Google Gemini. Configura tu clave de API en `.env`.Al usar Gemini no levanta ni descarga Ollama y su modelo por defecto.
 
@@ -116,24 +159,34 @@ http://localhost:8080
 Para detener los servicios, ejecuta `make down` o `docker compose down`.
 
 ## Testing
-Los tests de `tests/` se ejecutan con Pytest. `make test` levanta los servicios necesarios excepto Ollama y usa `fake-llm` para simular respuestas del proveedor de IA de forma determinista. No necesitas iniciar Ollama ni configurar una clave de Google.
+Los tests de `tests/` se ejecutan con Pytest en un servicio temporal `test-runner`. `make test` levanta los servicios necesarios excepto Ollama y usa `fake-llm` para simular respuestas del proveedor de IA de forma determinista. No necesitas iniciar Ollama ni configurar una clave de Google.
+
 
 Ejecuta desde la raíz:
 
 ```bash
 make test
 ```
-El comando muestra `TESTS PASSED` o `TESTS FAILED`. Para ver la salida detallada de Pytest, ejecuta:
+El comando solo muestra `TESTS PASSED` o `TESTS FAILED`. 
+`test-runner` espera a que los servicios dependientes superen sus `healthchecks` antes iniciar el testing. Para ver la salida detallada de Pytest, ejecuta:
 ```bash
 make test-verbose
 ```
 `make test` también puede usarse en un workflow de CI para validar los cambios automáticamente.
 
+## Observabilidad
+
+Logs estructurados con identificadores para trazar el flujo entre servicios:
+
+- `session_id` identifica una conexión WebSocket para agrupar los logs de una sesión.
+- `run_id` identifica una ejecución concreta del agente. Se incluye en los eventos WebSocket y se propaga a las llamadas HTTP internas para correlacionar sus logs.
+- `conversation_id` identifica la conversación y su historial.
+
 ## Tecnologías utilizadas
 
 | Categoría | Tecnologías |
 |---|---|
-| Backend | Python 3.x, FastAPI, Uvicorn, WebSockets, Pydantic, Pydantic Settings,HTTPX  |
+| Backend | Python 3.x, FastAPI, Uvicorn, WebSockets, Pydantic, Pydantic Settings,HTTPX, Make |
 | IA y llm | Ollama, Google GenAI, MCP |
 | RAG | ChromaDB, PyMuPDF, Sentence Transformers |
 | Infraestructura | Docker, Docker Compose, Nginx |
@@ -199,11 +252,11 @@ El proyecto puede conectarse a servidores MCP locales o online, siempre que sean
    - En Docker Compose, usa el nombre del servicio, por ejemplo `http://mcp-github:8000/mcp`.
    - Para un servidor online, usa su endpoint MCP público.
 
-Después de configurar el servidor, levanta los servicios:
+4.    Después de configurar el servidor, levanta los servicios:
 
-```bash
-docker compose up --build 
-```
+      ```bash
+      docker compose up --build tools-executor
+      ```
 
-Al iniciar, `tools-executor` se conecta a los servidores configurados locales y online y descubre sus herramientas para ofrecerlas al agente. Si el servidor online requiere autenticacion no conectara.
+      Al iniciar, `tools-executor` se conecta a los servidores configurados locales y online y descubre sus herramientas para ofrecerlas al agente. Si el servidor online requiere autenticacion no conectara.
 
