@@ -252,11 +252,5 @@ El proyecto puede conectarse a servidores MCP locales o online, siempre que sean
    - Para un servidor mcp local, usa el nombre del servicio, ej. `http://mcp-filesystem:8000`.
    - Para un servidor mcp online, usa su endpoint MCP público ej.`http://mcp-github:8000/mcp`.
 
-4.    Después de configurar el servidor, levanta los servicios:
-
-      ```bash
-      docker compose up --build tools-executor
-      ```
-
 Docker compose monta los servicios con bind-mount el servicio `tools-executor` se recarga solo y conecta a los servidores configurados locales/online y descubre sus herramientas para ofrecerlas al agente. Si el servidor online requiere autenticacion no conectara.
 
